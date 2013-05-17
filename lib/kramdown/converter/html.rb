@@ -58,6 +58,16 @@ module Kramdown
       # The mapping of element type to conversion method.
       DISPATCHER = Hash.new {|h,k| h[k] = "convert_#{k}"}
 
+      #determine body direction
+      def get_text_direction(body)
+        if body.scan(/[\u0600-\u06FF]|[\u0750-\u077F]|[\u0590-\u05FF]|[\uFE70-\uFEFF]/m).size >= (body.length / 3.0)
+          direction = " class=\"rtl-content\" dir=\"rtl\""
+        else
+          direction = nil
+        end
+      end
+
+
       # Dispatch the conversion of the element +el+ to a +convert_TYPE+ method using the +type+ of
       # the element.
       def convert(el, indent = -@indent)
@@ -156,8 +166,16 @@ module Kramdown
       alias :convert_dl :convert_ul
 
       def convert_li(el, indent)
-        output = ' '*indent << "<#{el.type}" << html_attributes(el.attr) << ">"
         res = inner(el, indent)
+
+        if !el.children.empty?
+          direction = get_text_direction(res)
+        else
+          direction = nil
+        end
+
+        output = ' '*indent << "<#{el.type}" << html_attributes(el.attr) << direction.to_s << ">"
+
         if el.children.empty? || (el.children.first.type == :p && el.children.first.options[:transparent])
           output << res << (res =~ /\n\Z/ ? ' '*indent : '')
         else
@@ -337,12 +355,14 @@ module Kramdown
 
       # Format the given element as span HTML.
       def format_as_span_html(name, attr, body)
-        "<#{name}#{html_attributes(attr)}>#{body}</#{name}>"
+        direction = get_text_direction(body)
+        "<#{name}#{html_attributes(attr)}#{direction}>#{body}</#{name}>"
       end
 
       # Format the given element as block HTML.
       def format_as_block_html(name, attr, body, indent)
-        "#{' '*indent}<#{name}#{html_attributes(attr)}>#{body}</#{name}>\n"
+        direction = get_text_direction(body)
+        "#{' '*indent}<#{name}#{html_attributes(attr)}#{direction}>#{body}</#{name}>\n"
       end
 
       # Format the given element as block HTML with a newline after the start tag and indentation
